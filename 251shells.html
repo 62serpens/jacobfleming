@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Jazz Chord Flashcard Trainer</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+      overscroll-behavior: none;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .dark-mode {
+      background-color: #1a202c;
+      color: white;
+    }
+    .light-mode {
+      background-color: #f7fafc;
+      color: #1a202c;
+    }
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+      position: relative;
+    }
+    .chord-display {
+      font-size: 5rem;
+      font-weight: bold;
+      text-align: center;
+      padding: 0 20px;
+    }
+    .extensions-display {
+      font-size: 2rem;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .settings {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: #4a5568;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      display: none;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .light-mode .settings {
+      background: #e2e8f0;
+    }
+    .settings.show {
+      display: block;
+    }
+    .top-controls {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .home-button {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+    }
+    .controls {
+      position: absolute;
+      bottom: 1rem;
+      display: flex;
+      gap: 1rem;
+    }
+    button, a.button {
+      padding: 0.5rem 1rem;
+      background: #3182ce;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .light-mode button, .light-mode a.button {
+      background: #2b6cb0;
+    }
+    button:hover, a.button:hover {
+      background: #2b6cb0;
+    }
+    .light-mode button:hover, .light-mode a.button:hover {
+      background: #2c5282;
+    }
+    .toggle-button {
+      padding: 0.3rem 0.6rem;
+      background: #4a5568;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+    }
+    .light-mode .toggle-button {
+      background: #e2e8f0;
+    }
+    .toggle-button:hover {
+      background: #5a6a80;
+    }
+    .light-mode .toggle-button:hover {
+      background: #cbd5e0;
+    }
+    .toggle-button.active {
+      background: rgba(255, 0, 0, 0.2);
+    }
+    .eleventh-thirteenth-toggle.active {
+      background: rgba(30, 144, 255, 0.2);
+    }
+    .ninth-toggle {
+      border: 1px solid #ff0000;
+    }
+    .eleventh-thirteenth-toggle {
+      border: 1px solid #1e90ff;
+    }
+    select, input[type="checkbox"] {
+      margin: 0.25rem 0;
+      padding: 0.5rem;
+      background: #2d3748;
+      color: white;
+      border-radius: 0.25rem;
+    }
+    .light-mode select, .light-mode input[type="checkbox"] {
+      background: #edf2f7;
+      color: #1a202c;
+    }
+    label {
+      display: block;
+      margin: 0.5rem 0 0.25rem;
+    }
+    .ext-9th {
+      color: #ff0000;
+    }
+    .ext-11th {
+      color: #1e90ff;
+    }
+    .ext-13th {
+      color: #00ff00;
+    }
+    @media (max-width: 768px) {
+      .chord-display {
+        font-size: 3rem;
+      }
+      .extensions-display {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body class="dark-mode">
+  <div class="main-content">
+    <div class="chord-display" id="chord">Dm7 (open)</div>
+    <div class="extensions-display" id="extensions"></div>
+    <a href="index.html" class="button home-button">Home</a>
+    <div class="top-controls">
+      <button id="lightModeBtn">🌙</button>
+      <button id="ninthBtn" class="toggle-button ninth-toggle"><span class="ext-9th">9th</span></button>
+      <button id="eleventhThirteenthBtn" class="toggle-button eleventh-thirteenth-toggle"><span class="ext-11th">11</span>/<span class="ext-13th">13</span></button>
+      <button id="settingsBtn">⚙️</button>
+    </div>
+    <div class="settings" id="settings">
+      <label for="interval">Interval (seconds):</label>
+      <select id="interval">
+        <option value="5000" selected>5</option>
+        <option value="10000">10</option>
+        <option value="15000">15</option>
+      </select>
+      <label>Keys to Include:</label>
+      <div id="key-checkboxes">
+        <label><input type="checkbox" value="C" checked> C</label>
+        <label><input type="checkbox" value="Db"> Db</label>
+        <label><input type="checkbox" value="D"> D</label>
+        <label><input type="checkbox" value="Eb"> Eb</label>
+        <label><input type="checkbox" value="E"> E</label>
+        <label><input type="checkbox" value="F"> F</label>
+        <label><input type="checkbox" value="Gb"> Gb</label>
+        <label><input type="checkbox" value="G"> G</label>
+        <label><input type="checkbox" value="Ab"> Ab</label>
+        <label><input type="checkbox" value="A"> A</label>
+        <label><input type="checkbox" value="Bb"> Bb</label>
+        <label><input type="checkbox" value="B"> B</label>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="startPause">Start</button>
+    </div>
+  </div>
+  <script>
+    const majorKeys = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const noteNames = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    
+    const chords = majorKeys.flatMap(key => {
+      const keyIndex = majorKeys.indexOf(key);
+      const iiRootIndex = (keyIndex + 2) % 12;
+      const vRootIndex = (keyIndex + 7) % 12;
+      const iRootIndex = keyIndex;
+      
+      const iiChord = noteNames[iiRootIndex] + 'm7';
+      const vChord = noteNames[vRootIndex] + '7';
+      const iChord = noteNames[iRootIndex] + 'maj7';
+      
+      return [
+        { 
+          chord: `${iiChord} (open)`, 
+          key, 
+          extensions: {
+            ninth: noteNames[(iiRootIndex + 2) % 12],
+            eleventh: noteNames[(iiRootIndex + 5) % 12]
+          }
+        },
+        { 
+          chord: `${iiChord} (closed)`, 
+          key, 
+          extensions: {
+            ninth: noteNames[(iiRootIndex + 2) % 12],
+            eleventh: noteNames[(iiRootIndex + 5) % 12]
+          }
+        },
+        { 
+          chord: `${vChord} (open)`, 
+          key, 
+          extensions: {
+            ninth: noteNames[(vRootIndex + 2) % 12],
+            thirteenth: noteNames[(vRootIndex + 9) % 12]
+          }
+        },
+        { 
+          chord: `${vChord} (closed)`, 
+          key, 
+          extensions: {
+            ninth: noteNames[(vRootIndex + 2) % 12],
+            thirteenth: noteNames[(vRootIndex + 9) % 12]
+          }
+        },
+        { 
+          chord: `${iChord} (open)`, 
+          key, 
+          extensions: {
+            ninth: noteNames[(iRootIndex + 2) % 12],
+            thirteenth: noteNames[(iRootIndex + 9) % 12]
+          }
+        },
+        { 
+          chord: `${iChord} (closed)`, 
+          key, 
+          extensions: {
+            ninth: noteNames[(iRootIndex + 2) % 12],
+            thirteenth: noteNames[(iRootIndex + 9) % 12]
+          }
+        },
+      ];
+    });
+
+    function shuffleArray(array) {
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    }
+
+    let selectedKeys = new Set(['C']);
+    let filteredChords = chords.filter(chord => selectedKeys.has(chord.key));
+    let shuffledChords = shuffleArray(filteredChords);
+    let currentChordIndex = 0;
+    let isRunning = false;
+    let intervalTime = 5000;
+    let timer = null;
+    let isLightMode = false;
+    let showNinths = false;
+    let showEleventhThirteenths = false;
+
+    const chordDisplay = document.getElementById('chord');
+    const extensionsDisplay = document.getElementById('extensions');
+    const startPauseBtn = document.getElementById('startPause');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const lightModeBtn = document.getElementById('lightModeBtn');
+    const ninthBtn = document.getElementById('ninthBtn');
+    const eleventhThirteenthBtn = document.getElementById('eleventhThirteenthBtn');
+    const settingsPanel = document.getElementById('settings');
+    const intervalSelect = document.getElementById('interval');
+    const keyCheckboxes = document.getElementById('key-checkboxes');
+
+    function updateChord() {
+      const chordObj = shuffledChords[currentChordIndex];
+      chordDisplay.textContent = chordObj.chord;
+      let extensionsText = '';
+      if (showNinths && chordObj.extensions.ninth) {
+        extensionsText += `<span class="ext-9th">${chordObj.extensions.ninth}</span> `;
+      }
+      if (showEleventhThirteenths) {
+        if (chordObj.extensions.eleventh) {
+          extensionsText += `<span class="ext-11th">${chordObj.extensions.eleventh}</span> `;
+        } else if (chordObj.extensions.thirteenth) {
+          extensionsText += `<span class="ext-13th">${chordObj.extensions.thirteenth}</span> `;
+        }
+      }
+      extensionsDisplay.innerHTML = extensionsText.trim();
+      ninthBtn.classList.toggle('active', showNinths);
+      eleventhThirteenthBtn.classList.toggle('active', showEleventhThirteenths);
+    }
+
+    function nextChord() {
+      const startTime = performance.now();
+      let nextIndex = currentChordIndex + 1;
+      if (nextIndex >= shuffledChords.length) {
+        shuffledChords = shuffleArray(filteredChords);
+        nextIndex = 0;
+      }
+      if (shuffledChords[nextIndex].chord === shuffledChords[currentChordIndex].chord && shuffledChords.length > 1) {
+        nextIndex = (nextIndex + 1) % shuffledChords.length;
+      }
+      currentChordIndex = nextIndex;
+      updateChord();
+      const duration = performance.now() - startTime;
+      if (duration > 50) {
+        console.log(`nextChord took ${duration.toFixed(2)}ms, chord: ${shuffledChords[currentChordIndex].chord}`);
+      }
+    }
+
+    function startTimer() {
+      if (!isRunning && filteredChords.length > 0) {
+        isRunning = true;
+        startPauseBtn.textContent = 'Pause';
+        if (timer) clearInterval(timer);
+        timer = setInterval(nextChord, intervalTime);
+      }
+    }
+
+    function pauseTimer() {
+      if (isRunning) {
+        isRunning = false;
+        startPauseBtn.textContent = 'Start';
+        clearInterval(timer);
+      }
+    }
+
+    function updateFilteredChords() {
+      filteredChords = chords.filter(chord => selectedKeys.has(chord.key));
+      shuffledChords = shuffleArray(filteredChords);
+      currentChordIndex = 0;
+      updateChord();
+      if (isRunning && filteredChords.length === 0) {
+        pauseTimer();
+      }
+    }
+
+    function toggleLightMode() {
+      isLightMode = !isLightMode;
+      document.body.classList.toggle('light-mode', isLightMode);
+      document.body.classList.toggle('dark-mode', !isLightMode);
+      lightModeBtn.textContent = isLightMode ? '🌞' : '🌙';
+    }
+
+    function toggleSettings(e) {
+      e.stopPropagation();
+      settingsPanel.classList.toggle('show');
+    }
+
+    function closeSettingsIfOutside(e) {
+      if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+        settingsPanel.classList.remove('show');
+      }
+    }
+
+    startPauseBtn.addEventListener('click', () => {
+      if (isRunning) pauseTimer();
+      else startTimer();
+    });
+
+    settingsBtn.addEventListener('click', toggleSettings);
+
+    document.addEventListener('click', closeSettingsIfOutside);
+
+    lightModeBtn.addEventListener('click', toggleLightMode);
+
+    ninthBtn.addEventListener('click', () => {
+      showNinths = !showNinths;
+      updateChord();
+    });
+
+    eleventhThirteenthBtn.addEventListener('click', () => {
+      showEleventhThirteenths = !showEleventhThirteenths;
+      updateChord();
+    });
+
+    intervalSelect.addEventListener('change', (e) => {
+      intervalTime = Number(e.target.value);
+      if (isRunning) {
+        pauseTimer();
+        startTimer();
+      }
+    });
+
+    keyCheckboxes.addEventListener('change', (e) => {
+      if (e.target.type === 'checkbox') {
+        const key = e.target.value;
+        if (e.target.checked) {
+          selectedKeys.add(key);
+        } else {
+          selectedKeys.delete(key);
+        }
+        updateFilteredChords();
+      }
+    });
+
+    // Initial chord display
+    updateChord();
+
+    // Request fullscreen on load
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen failed:', err));
+    }
+  </script>
+</body>
+</html>

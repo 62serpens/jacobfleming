@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snare Roll Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1A0B2E;
+            color: #E6E6FA;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .accent {
+            color: #8B00FF;
+        }
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #8B00FF, #C0C0C0);
+            outline: none;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #E6E6FA;
+            cursor: pointer;
+            box-shadow: 0 0 5px #8B00FF;
+        }
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #E6E6FA;
+            cursor: pointer;
+            box-shadow: 0 0 5px #8B00FF;
+        }
+        button {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px #8B00FF;
+        }
+        canvas {
+            border: 2px solid #8B00FF;
+            background-color: #2A1B3E;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+        .error {
+            background-color: #4B1A2E;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-6">
+        <h1 class="text-4xl font-bold accent mb-6">Snare Roll Generator</h1>
+        <div class="grid grid-cols-1 gap-4">
+            <div>
+                <label for="density" class="block text-lg">Density</label>
+                <input type="range" id="density" class="slider" min="1" max="10" value="5">
+            </div>
+            <div>
+                <label for="aggressiveness" class="block text-lg">Aggressiveness</label>
+                <input type="range" id="aggressiveness" class="slider" min="1" max="127" value="100">
+            </div>
+            <div>
+                <label for="pitchVariation" class="block text-lg">Pitch Variation (semitones)</label>
+                <input type="range" id="pitchVariation" class="slider" min="0" max="12" value="0">
+            </div>
+            <div>
+                <label for="bpm" class="block text-lg">BPM</label>
+                <input type="number" id="bpm" class="bg-gray-800 text-white p-2 rounded w-full" min="60" max="200" value="140">
+            </div>
+        </div>
+        <div class="mt-6 flex space-x-4">
+            <button id="playBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded">Play</button>
+            <button id="stopBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded">Stop</button>
+            <button id="downloadMidi" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded">Download MIDI</button>
+        </div>
+        <div id="error" class="mt-4 text-red-400 error hidden"></div>
+        <canvas id="midiPreview" width="600" height="100" class="mt-4"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi-writer-js@2.0.0/build/index.min.js"></script>
+    <script>
+        const snareUrl = '/audio/snare.wav';
+        let snarePlayer;
+        let isPlaying = false;
+        let sequence;
+        const errorDiv = document.getElementById('error');
+        const canvas = document.getElementById('midiPreview');
+        const ctx = canvas.getContext('2d');
+
+        // Pre-load audio
+        async function loadAudio() {
+            try {
+                await Tone.start();
+                console.log('Attempting to load /audio/snare.wav...');
+                snarePlayer = new Tone.Player({
+                    url: snareUrl,
+                    onload: () => console.log('snare.wav loaded successfully'),
+                    onerror: (err) => {
+                        throw new Error('Failed to load snare.wav: ' + err);
+                    }
+                }).toDestination();
+                await snarePlayer.load();
+            } catch (err) {
+                errorDiv.textContent = 'Error loading /audio/snare.wav. Ensure it’s in the audio/ folder and is a valid WAV file.';
+                errorDiv.classList.remove('hidden');
+                console.error('Audio load error:', err);
+                snarePlayer = null;
+            }
+        }
+
+        // Initialize on first interaction
+        document.addEventListener('click', async () => {
+            if (!snarePlayer) await loadAudio();
+        }, { once: true });
+
+        // Generate snare roll notes (fixed 1 bar)
+        function generateSnareRoll(density, aggressiveness, pitchVariation, bpm) {
+            const notes = [];
+            const barDuration = (60 / bpm) * 4;
+            const rollDuration = barDuration; // Fixed 1 bar
+            const numHits = Math.floor(density * 10);
+            const timeStep = rollDuration / numHits;
+
+            for (let i = 1; i <= numHits; i++) {
+                const time = (i - 1) * timeStep;
+                const velocity = Math.min(127, aggressiveness + (Math.random() * 20 - 10));
+                const pitchOffset = pitchVariation > 0 ? Math.floor(Math.random() * pitchVariation) - (pitchVariation / 2) : 0;
+                notes.push({
+                    time: time,
+                    midi: 38 + pitchOffset,
+                    velocity: velocity / 127
+                });
+            }
+            return notes;
+        }
+
+        // Draw MIDI preview
+        function drawMidiPreview(notes, rollDuration) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#8B00FF';
+            ctx.strokeStyle = '#E6E6FA';
+            ctx.lineWidth = 1;
+            const heightPerSemitone = canvas.height / 24;
+            notes.forEach(note => {
+                const x = (note.time / rollDuration) * canvas.width;
+                const y = canvas.height / 2 - (note.midi - 38) * heightPerSemitone;
+                const width = Math.max(5, canvas.width / notes.length / 2);
+                const height = 10 * note.velocity;
+                ctx.fillRect(x, y - height / 2, width, height);
+                ctx.strokeRect(x, y - height / 2, width, height);
+            });
+        }
+
+        // Play button
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            if (isPlaying) return;
+            isPlaying = true;
+
+            if (!snarePlayer) {
+                await loadAudio();
+                if (!snarePlayer) {
+                    errorDiv.textContent = 'Cannot play: snare.wav failed to load.';
+                    errorDiv.classList.remove('hidden');
+                    console.error('Play failed: No snarePlayer');
+                    isPlaying = false;
+                    return;
+                }
+            }
+
+            const density = parseInt(document.getElementById('density').value);
+            const aggressiveness = parseInt(document.getElementById('aggressiveness').value);
+            const pitchVariation = parseInt(document.getElementById('pitchVariation').value);
+            const bpm = parseInt(document.getElementById('bpm').value);
+            Tone.Transport.bpm.value = bpm;
+
+            const notes = generateSnareRoll(density, aggressiveness, pitchVariation, bpm);
+            const rollDuration = (60 / bpm) * 4;
+
+            drawMidiPreview(notes, rollDuration);
+
+            try {
+                sequence = new Tone.Sequence((time, note) => {
+                    snarePlayer.start(time, 0, '16n', 0, note.velocity);
+                }, notes, '16n').start(0);
+                Tone.Transport.start();
+                console.log('Playback started with', notes.length, 'notes');
+            } catch (err) {
+                errorDiv.textContent = 'Error starting playback. Check console for details.';
+                errorDiv.classList.remove('hidden');
+                console.error('Playback error:', err);
+                isPlaying = false;
+            }
+        });
+
+        // Stop button
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (!isPlaying) return;
+            isPlaying = false;
+            Tone.Transport.stop();
+            if (sequence) {
+                sequence.stop();
+                sequence.dispose();
+            }
+            console.log('Playback stopped');
+        });
+
+        // Download MIDI
+        document.getElementById('downloadMidi').addEventListener('click', () => {
+            try {
+                const density = parseInt(document.getElementById('density').value);
+                const aggressiveness = parseInt(document.getElementById('aggressiveness').value);
+                const pitchVariation = parseInt(document.getElementById('pitchVariation').value);
+                const bpm = parseInt(document.getElementById('bpm').value);
+
+                const notes = generateSnareRoll(density, aggressiveness, pitchVariation, bpm);
+                const track = new MidiWriter.Track();
+                track.setTempo(bpm);
+
+                notes.forEach(note => {
+                    track.addEvent(new MidiWriter.NoteEvent({
+                        pitch: note.midi,
+                        duration: '16',
+                        velocity: Math.floor(note.velocity * 100),
+                        startTick: Math.floor(note.time * 960 / (60 / bpm))
+                    }));
+                });
+
+                const write = new MidiWriter.Writer([track]);
+                const dataUri = write.dataUri();
+                const a = document.createElement('a');
+                a.href = dataUri;
+                a.download = 'snare_roll.mid';
+                a.click();
+                console.log('MIDI file generated and downloaded');
+            } catch (err) {
+                errorDiv.textContent = 'Error generating MIDI file. Check console for details.';
+                errorDiv.classList.remove('hidden');
+                console.error('MIDI generation error:', err);
+            }
+        });
+    </script>
+</body>
+</html>
